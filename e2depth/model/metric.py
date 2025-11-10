@@ -1,5 +1,8 @@
 from sklearn.metrics import mean_squared_error
-from skimage.measure import compare_ssim as ssim
+try:
+    from skimage.metrics import structural_similarity as compare_ssim
+except ImportError:
+    from skimage.measure import compare_ssim
 import torch
 from LPIPS.models import dist_model as dm
 import numpy as np

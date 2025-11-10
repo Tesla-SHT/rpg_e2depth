@@ -43,7 +43,8 @@ class EvGGSDataset(Dataset):
                  load_rgb=False,
                  load_mask=False,
                  use_voxel=True,
-                 verbose=False):
+                 verbose=False,
+                 clip_distance = 100.0):
         """
         Args:
             base_folder: EvGGS数据集的根目录
@@ -67,7 +68,7 @@ class EvGGSDataset(Dataset):
         self.load_mask = load_mask
         self.use_voxel = use_voxel
         self.verbose = verbose
-        
+        self.clip_distance = clip_distance
         # 路径设置
         self.seq_folder = join(base_folder, scene_name, sequence)
         self.images_folder = join(self.seq_folder, 'images')
@@ -101,7 +102,7 @@ class EvGGSDataset(Dataset):
     def __len__(self):
         return self.num_frames
     
-    def __getitem__(self, idx):
+    def __getitem__(self, idx, seed=None):
         """
         Returns:
             data: dict包含以下内容:
@@ -113,7 +114,15 @@ class EvGGSDataset(Dataset):
                 - 'camera_intrinsics': (可选) 相机内参
                 - 'camera_pose': (可选) 相机位姿
                 - 'maximum_depth': (可选) 最大深度值
+        Args:
+            idx: 索引
+            seed: 随机种子（用于数据增强的一致性）
         """
+        # 如果提供了seed，设置随机种子以保证序列中的transform一致
+        if seed is not None:
+            torch.manual_seed(seed)
+            np.random.seed(seed)
+        
         actual_idx = self.start_idx + idx
         frame_name = f'frame{actual_idx:06d}'
         
@@ -189,13 +198,29 @@ class EvGGSDataset(Dataset):
         
         # 加载深度图
         if self.load_depth:
-            # 注意深度文件名格式: frame000001.jpg.geometric.png
             depth_path = join(self.depth_folder, f'{frame_name}.jpg.geometric.png')
             if os.path.exists(depth_path):
                 from PIL import Image
-                depth = Image.open(depth_path)
-                depth = np.array(depth).astype(np.float32)
-                data['depth'] = torch.from_numpy(depth)
+                depth_img = Image.open(depth_path)
+                depth = np.array(depth_img).astype(np.float32)
+                
+                # 归一化处理（参考原版）
+                depth = np.clip(depth, 0.0, self.clip_distance)
+                max_val = np.amax(depth[~np.isnan(depth)])
+                if max_val > 0:
+                    depth = depth / max_val
+                
+                # 转为 log depth
+                depth = 1.0 + np.log(depth + 1e-6) / 3.70378
+                depth = depth.clip(0, 1.0)
+                
+                # 确保是 [1, H, W] 格式
+                if len(depth.shape) == 2:  # [H, W]
+                    depth = np.expand_dims(depth, 0)  # [1, H, W]
+                elif len(depth.shape) == 3 and depth.shape[2] == 1:  # [H, W, 1]
+                    depth = np.moveaxis(depth, -1, 0)  # [1, H, W]
+                
+                data['depth'] = torch.from_numpy(depth).float()
         
         # 加载RGB图像
         if self.load_rgb:
@@ -217,7 +242,22 @@ class EvGGSDataset(Dataset):
         
         # 应用变换
         if self.transform is not None:
-            data = self.transform(data)
+                        # 创建一个临时的组合tensor用于transform
+            to_transform = data['events']
+            
+            if 'depth' in data:
+                # 将depth添加为额外通道
+                #depth_channel = data['depth'].unsqueeze(0)
+                to_transform = torch.cat([to_transform, data['depth']], dim=0)
+                
+                # 应用transform
+                transformed = self.transform(to_transform, is_flow=False)
+                
+                # 分离回去
+                data['events'] = transformed[:-1]
+                data['depth'] = transformed[-1:]
+            else:
+                data['events'] = self.transform(to_transform, is_flow=False)
         
         return data
     
@@ -269,47 +309,39 @@ def load_evggs_splits(base_folder, scene_name, split='train'):
         sequences = json.load(f)
     
     return sequences
+
 import random
-import torch
-import torch.nn.functional as f
 
 class EvGGSSequenceDataset(Dataset):
     """
     Load sequences of time-synchronized {event tensors + depth} from EvGGS dataset.
-    完全兼容 SequenceSynchronizedFramesEventsDataset 的接口。
+    Similar to SequenceSynchronizedFramesEventsDataset but for EvGGS format.
     """
     
     def __init__(self, base_folder, scene_name, sequence_length=5,
                  transform=None, clip_distance=100.0, normalize=True,
                  scale_factor=1.0, inverse=False, step_size=1,
-                 use_voxel=True, start_idx=1, stop_idx=None,
-                 proba_pause_when_running=0.0, proba_pause_when_paused=0.0):
-        
-        assert(sequence_length > 0)
-        assert(step_size > 0)
-        assert(clip_distance > 0)
+                 use_voxel=True, start_idx=0, stop_idx=None):
         
         self.L = sequence_length
+        self.transform = transform
         self.clip_distance = clip_distance
         self.normalize = normalize
         self.scale_factor = scale_factor
         self.inverse = inverse
         self.step_size = step_size
-        self.transform = transform
-        self.proba_pause_when_running = proba_pause_when_running
-        self.proba_pause_when_paused = proba_pause_when_paused
         
-        # Create base dataset - 注意这里不传transform，我们在sequence级别处理
+        # Create base dataset
         self.dataset = EvGGSDataset(
             base_folder=base_folder,
             scene_name=scene_name,
             sequence='1',
             start_idx=start_idx,
             stop_idx=stop_idx,
-            transform=None,  # 不在这里transform
+            transform=transform,
             load_depth=True,
             use_voxel=use_voxel,
-            verbose=False
+            clip_distance = clip_distance
         )
         
         # Calculate sequence length
@@ -326,7 +358,6 @@ class EvGGSSequenceDataset(Dataset):
     def __getitem__(self, i):
         """
         Returns a list containing synchronized events <-> depth pairs
-        完全模仿 SequenceSynchronizedFramesEventsDataset 的返回格式
         """
         assert(i >= 0)
         assert(i < self.length)
@@ -336,114 +367,71 @@ class EvGGSSequenceDataset(Dataset):
         
         sequence = []
         
-        # Add the first element (do not start with a pause)
-        k = 0
-        j = i * self.step_size
-        item = self._get_processed_item(j, seed)
-        sequence.append(item)
-        
-        # Add remaining elements with possible pauses
-        paused = False
-        for n in range(self.L - 1):
-            # Decide whether to pause
-            u = np.random.rand()
-            if paused:
-                probability_pause = self.proba_pause_when_paused
+        for k in range(self.L):
+            j = i * self.step_size + k
+            item = self.dataset.__getitem__(j, seed)
+            #print("item keys:", item.keys())
+            # 确保 depth 有正确的维度 [1, H, W]
+            if 'depth' in item:
+                depth = item['depth']
+                if len(depth.shape) == 2:  # [H, W]
+                    depth = depth.unsqueeze(0)  # [1, H, W]
             else:
-                probability_pause = self.proba_pause_when_running
-            paused = (u < probability_pause)
+                # 如果没有depth，创建一个零张量
+                depth = torch.zeros(1, item['events'].shape[1], item['events'].shape[2])
             
-            if paused:
-                # Add a tensor filled with zeros, paired with the last frame
-                item = self._get_processed_item(j + k, seed)
-                item['events'].fill_(0.0)
-                if 'flow' in item:
-                    item['flow'].fill_(0.0)
-                sequence.append(item)
-            else:
-                # Normal case: append the next item
-                k += 1
-                item = self._get_processed_item(j + k, seed)
-                sequence.append(item)
+            # 创建 flow: [2, H, W]
+            flow = torch.zeros(2, depth.shape[1], depth.shape[2], dtype=torch.float32)
+            transformed_item = {
+                'events': item['events'],
+                'frame': item['depth'],  # 用 depth 作为 frame
+            }
+            
+            # 如果有其他需要的数据也可以保留
+            if 'camera_intrinsics' in item:
+                transformed_item['camera_intrinsics'] = item['camera_intrinsics']
+            if 'camera_pose' in item:
+                transformed_item['camera_pose'] = item['camera_pose']
+            
+            sequence.append(transformed_item)
         
         # Apply downsampling if needed
         if self.scale_factor < 1.0:
             for data_items in sequence:
                 for key, item in data_items.items():
-                    if key not in ["times", "frame_idx", "maximum_depth", "camera_intrinsics", "camera_pose"]:
-                        if isinstance(item, torch.Tensor) and len(item.shape) >= 2:
-                            item = item[None]  # Add batch dimension
-                            item = f.interpolate(
-                                item, scale_factor=self.scale_factor, 
-                                mode='bilinear', align_corners=True
-                            )
-                            item = item[0]  # Remove batch dimension
-                            data_items[key] = item
+                    if key not in ["times", "frame_idx"]:
+                        item = item[None]
+                        item = torch.nn.functional.interpolate(
+                            item, scale_factor=self.scale_factor, 
+                            mode='bilinear', align_corners=True
+                        )
+                        item = item[0]
+                        data_items[key] = item
         
         return sequence
+
+
+def load_evggs_splits_seq(base_folder, train_ratio=0.8):
+    """
+    Load and split EvGGS scenes into train/val sets
     
-    def _get_processed_item(self, idx, seed):
-        """
-        获取单个处理好的item，格式与原版dataset完全一致
-        """
-        # 从base dataset获取原始数据
-        raw_item = self.dataset.__getitem__(idx)
-        
-        # 处理 depth 图
-        if 'depth' in raw_item:
-            depth = raw_item['depth'].numpy()  # tensor -> numpy
-            
-            # Clip to maximum distance
-            depth = np.clip(depth, 0.0, self.clip_distance)
-            
-            # Normalize
-            max_depth = np.amax(depth[~np.isnan(depth)])
-            if max_depth > 0:
-                depth = depth / max_depth
-            
-            # Inverse depth (如果需要)
-            if self.inverse:
-                depth = 1.0 / (depth + 1e-6)
-                max_depth = np.amax(depth[~np.isnan(depth)])
-                if max_depth > 0:
-                    depth = depth / max_depth
-            
-            # Convert to log depth (与原版完全一致)
-            reg_factor = 3.70378
-            depth = 1.0 + np.log(depth + 1e-6) / reg_factor
-            depth = depth.clip(0, 1.0)
-            
-            # 确保是 [1, H, W] 格式
-            if len(depth.shape) == 2:  # [H, W]
-                depth = np.expand_dims(depth, 0)  # [1, H, W]
-            
-            frame = torch.from_numpy(depth).float()
-        else:
-            # 如果没有depth，创建零张量
-            frame = torch.zeros(1, raw_item['events'].shape[1], raw_item['events'].shape[2])
-        
-        # 获取 events
-        events = raw_item['events']  # [C, H, W]
-        
-        # 创建 flow (虚拟的零flow)
-        flow = torch.zeros(2, frame.shape[1], frame.shape[2], dtype=torch.float32)
-        
-        # 应用 transform (如果有)
-        if self.transform:
-            random.seed(seed)
-            events = self.transform(events, is_flow=False)
-            
-            random.seed(seed)
-            frame = self.transform(frame, is_flow=False)
-            
-            random.seed(seed)
-            flow = self.transform(flow, is_flow=True)
-        
-        # 构造返回的item，格式与原版完全一致
-        item = {
-            'events': events,   # [C, H, W]
-            'frame': frame,     # [1, H, W]
-            'flow': flow,       # [2, H, W]
-        }
-        
-        return item
+    Args:
+        base_folder: Path to EvGGS dataset
+        train_ratio: Ratio of scenes to use for training
+    
+    Returns:
+        train_scenes, val_scenes: Lists of scene names
+    """
+    import glob
+    
+    # Find all scene folders
+    scene_paths = glob.glob(os.path.join(base_folder, '*'))
+    scenes = [os.path.basename(p) for p in scene_paths if os.path.isdir(p)]
+    scenes.sort()
+    
+    # Split into train/val
+    n_train = int(len(scenes) * train_ratio)
+    train_scenes = scenes[:n_train]
+    val_scenes = scenes[n_train:]
+    
+    return train_scenes, val_scenes

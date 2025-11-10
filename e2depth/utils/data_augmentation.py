@@ -187,6 +187,7 @@ class RandomRotationFlip(object):
         Returns:
             Tensor: Rotated tensor.
         """
+        #print("wrong x", x)
         assert(len(x.shape) == 3)
 
         if is_flow:

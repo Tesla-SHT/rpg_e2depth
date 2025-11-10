@@ -12,9 +12,9 @@ from data_loader.dataset import *
 from trainer.lstm_trainer import LSTMTrainer
 from utils.data_augmentation import Compose, RandomRotationFlip, RandomCrop, CenterCrop
 from os.path import join
+from utils.evggs_dataset import EvGGSSequenceDataset
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from utils.evggs_dataset import EvGGSSequenceDataset
 
 logging.basicConfig(level=logging.INFO, format='')
 
@@ -29,7 +29,8 @@ def concatenate_evggs_scenes(base_folder, scenes, sequence_length, transform=Non
     
     for scene_name in scenes:
         print(f'Loading scene: {scene_name}')
-        try:
+        try: 
+            #print("basefolder", base_folder)
             dataset = EvGGSSequenceDataset(
                 base_folder=base_folder,
                 scene_name=scene_name,

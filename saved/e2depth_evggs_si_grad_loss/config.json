@@ -4,10 +4,10 @@
     "gpu": 0,
     "save_dir": "saved/",
     "seed": 123,
-
     "arch": "E2VIDRecurrent",
     "model": {
         "num_bins": 5,
+        "skip_type": "sum",
         "num_encoders": 3,
         "base_num_channels": 32,
         "num_residual_blocks": 2,
@@ -15,50 +15,50 @@
         "recurrent_block_type": "convlstm",
         "norm": "none"
     },
-
     "loss": {
-        "type": "si_gradient_loss",
-        "config": {}
+        "type": "scale_invariant_loss",
+        "config": {
+            "weight": 1.0,
+            "n_lambda": 1.0
+        }
     },
-
+    "grad_loss": {
+        "weight": 0.5
+    },
     "metrics": [
-        "mse"
+        "mse",
+        "abs_rel_diff",
+        "scale_invariant_error",
+        "median_error"
     ],
-
     "trainer": {
         "epochs": 100,
+        "sequence_length": 10,
         "save_dir": "saved/",
-        "save_period": 5,
+        "save_freq": 5,
         "verbosity": 2,
-        "monitor": "min val_loss",
-        "early_stop": 10,
-        "tensorboard": true,
-        "sequence_length": 5,
+        "monitor": "val_loss",
+        "monitor_mode": "min",
         "num_previews": 3,
-        "num_val_previews": 3
+        "num_val_previews": 3,
+        "still_previews": true,
+        "grid_loss": true
     },
-
+    "optimizer_type": "Adam",
     "optimizer": {
-        "type": "Adam",
-        "args": {
-            "lr": 0.0001,
-            "weight_decay": 0,
-            "amsgrad": true
-        }
+        "lr": 0.0001,
+        "weight_decay": 0,
+        "amsgrad": true
     },
-
+    "lr_scheduler_type": "ExponentialLR",
+    "lr_scheduler_freq": 1000,
     "lr_scheduler": {
-        "type": "StepLR",
-        "args": {
-            "step_size": 50,
-            "gamma": 0.1
-        }
+        "gamma": 1.0
     },
-
     "data_loader": {
         "train": {
             "type": "SequenceSynchronizedFramesEventsDataset",
-            "base_folder": "evggs_data/train",
+            "base_folder": "/run/user/1001/gvfs/sftp:host=login.cvgl.lab,port=22332/datasets/feed_forward_event/Tartanair_tmp/indoor",
             "event_folder": "events",
             "depth_folder": "depth",
             "frame_folder": "rgb",
@@ -72,7 +72,7 @@
         },
         "validation": {
             "type": "SequenceSynchronizedFramesEventsDataset",
-            "base_folder": "evggs_data/val",
+            "base_folder": "/run/user/1001/gvfs/sftp:host=login.cvgl.lab,port=22332/datasets/feed_forward_event/Tartanair_tmp/indoor",
             "event_folder": "events",
             "depth_folder": "depth",
             "frame_folder": "rgb",
