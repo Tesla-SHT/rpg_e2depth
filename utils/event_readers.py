@@ -39,7 +39,7 @@ class EventDataset(Dataset):
                                                                         'timestamps.txt')))
 
         # Check that the timestamps are unique and sorted
-        assert(np.alltrue(np.diff(self.stamps) > 0)), "timestamps are not unique and monotonically increasing"
+        assert(np.all(np.diff(self.stamps) > 0)), "timestamps are not unique and monotonically increasing"
 
         self.initial_stamp = self.stamps[0]
         self.stamps = self.stamps - self.initial_stamp  # offset the timestamps so they start at 0
