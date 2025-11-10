@@ -1,0 +1,92 @@
+{
+    "name": "e2depth_evggs_si_grad_loss",
+    "cuda": true,
+    "gpu": 0,
+    "save_dir": "saved/",
+    "seed": 123,
+
+    "arch": "E2VIDRecurrent",
+    "model": {
+        "num_bins": 5,
+        "num_encoders": 3,
+        "base_num_channels": 32,
+        "num_residual_blocks": 2,
+        "use_upsample_conv": true,
+        "recurrent_block_type": "convlstm",
+        "norm": "none"
+    },
+
+    "loss": {
+        "type": "si_gradient_loss",
+        "config": {}
+    },
+
+    "metrics": [
+        "mse"
+    ],
+
+    "trainer": {
+        "epochs": 100,
+        "save_dir": "saved/",
+        "save_period": 5,
+        "verbosity": 2,
+        "monitor": "min val_loss",
+        "early_stop": 10,
+        "tensorboard": true,
+        "sequence_length": 5,
+        "num_previews": 3,
+        "num_val_previews": 3
+    },
+
+    "optimizer": {
+        "type": "Adam",
+        "args": {
+            "lr": 0.0001,
+            "weight_decay": 0,
+            "amsgrad": true
+        }
+    },
+
+    "lr_scheduler": {
+        "type": "StepLR",
+        "args": {
+            "step_size": 50,
+            "gamma": 0.1
+        }
+    },
+
+    "data_loader": {
+        "train": {
+            "type": "SequenceSynchronizedFramesEventsDataset",
+            "base_folder": "evggs_data/train",
+            "event_folder": "events",
+            "depth_folder": "depth",
+            "frame_folder": "rgb",
+            "dataset_type": "evggs",
+            "proba_pause_when_running": 0.0,
+            "proba_pause_when_paused": 0.0,
+            "step_size": 1,
+            "clip_distance": 100.0,
+            "scale_factor": 1.0,
+            "inverse": false
+        },
+        "validation": {
+            "type": "SequenceSynchronizedFramesEventsDataset",
+            "base_folder": "evggs_data/val",
+            "event_folder": "events",
+            "depth_folder": "depth",
+            "frame_folder": "rgb",
+            "dataset_type": "evggs",
+            "proba_pause_when_running": 0.0,
+            "proba_pause_when_paused": 0.0,
+            "step_size": 1,
+            "clip_distance": 100.0,
+            "scale_factor": 1.0,
+            "inverse": false
+        },
+        "batch_size": 4,
+        "shuffle": true,
+        "num_workers": 4,
+        "pin_memory": true
+    }
+}

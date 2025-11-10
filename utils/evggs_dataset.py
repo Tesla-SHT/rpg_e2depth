@@ -269,3 +269,105 @@ def load_evggs_splits(base_folder, scene_name, split='train'):
         sequences = json.load(f)
     
     return sequences
+
+import random
+
+class EvGGSSequenceDataset(Dataset):
+    """
+    Load sequences of time-synchronized {event tensors + depth} from EvGGS dataset.
+    Similar to SequenceSynchronizedFramesEventsDataset but for EvGGS format.
+    """
+    
+    def __init__(self, base_folder, scene_name, sequence_length=5,
+                 transform=None, clip_distance=100.0, normalize=True,
+                 scale_factor=1.0, inverse=False, step_size=1,
+                 use_voxel=True, start_idx=0, stop_idx=None):
+        
+        self.L = sequence_length
+        self.transform = transform
+        self.clip_distance = clip_distance
+        self.normalize = normalize
+        self.scale_factor = scale_factor
+        self.inverse = inverse
+        self.step_size = step_size
+        
+        # Create base dataset
+        self.dataset = EvGGSDataset(
+            base_folder=base_folder,
+            scene_name=scene_name,
+            sequence='1',
+            start_idx=start_idx,
+            stop_idx=stop_idx,
+            transform=transform,
+            load_depth=True,
+            use_voxel=use_voxel
+        )
+        
+        # Calculate sequence length
+        if self.L >= len(self.dataset):
+            self.length = 0
+        else:
+            self.length = (len(self.dataset) - self.L) // self.step_size + 1
+        
+        print(f'EvGGSSequenceDataset: {scene_name}, sequences: {self.length}')
+    
+    def __len__(self):
+        return self.length
+    
+    def __getitem__(self, i):
+        """
+        Returns a list containing synchronized events <-> depth pairs
+        """
+        assert(i >= 0)
+        assert(i < self.length)
+        
+        # Generate random seed for consistent transforms
+        seed = random.randint(0, 2**32)
+        
+        sequence = []
+        
+        for k in range(self.L):
+            j = i * self.step_size + k
+            item = self.dataset.__getitem__(j, seed)
+            sequence.append(item)
+        
+        # Apply downsampling if needed
+        if self.scale_factor < 1.0:
+            for data_items in sequence:
+                for key, item in data_items.items():
+                    if key not in ["times", "frame_idx"]:
+                        item = item[None]
+                        item = torch.nn.functional.interpolate(
+                            item, scale_factor=self.scale_factor, 
+                            mode='bilinear', align_corners=True
+                        )
+                        item = item[0]
+                        data_items[key] = item
+        
+        return sequence
+
+
+def load_evggs_splits_seq(base_folder, train_ratio=0.8):
+    """
+    Load and split EvGGS scenes into train/val sets
+    
+    Args:
+        base_folder: Path to EvGGS dataset
+        train_ratio: Ratio of scenes to use for training
+    
+    Returns:
+        train_scenes, val_scenes: Lists of scene names
+    """
+    import glob
+    
+    # Find all scene folders
+    scene_paths = glob.glob(os.path.join(base_folder, '*'))
+    scenes = [os.path.basename(p) for p in scene_paths if os.path.isdir(p)]
+    scenes.sort()
+    
+    # Split into train/val
+    n_train = int(len(scenes) * train_ratio)
+    train_scenes = scenes[:n_train]
+    val_scenes = scenes[n_train:]
+    
+    return train_scenes, val_scenes
