@@ -367,7 +367,7 @@ class EvGGSSequenceDataset(Dataset):
         
         sequence = []
         
-        for k in range(self.L):
+        for k in range(1, self.L):
             j = i * self.step_size + k
             item = self.dataset.__getitem__(j, seed)
             #print("item keys:", item.keys())

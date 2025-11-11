@@ -97,9 +97,10 @@ def plot_grad_flow_bars(named_parameters, lr=1):
     for n, p in named_parameters:
         if (p.requires_grad) and p.grad is not None:
             layers.append(n)
-            ave_grads.append(lr*p.grad.abs().mean())
-            max_grads.append(lr*p.grad.abs().max())
-            min_grads.append(lr*p.grad.abs().min())
+            # 修改：将 CUDA tensor 转到 CPU 并转为 Python 标量
+            ave_grads.append((lr * p.grad.abs().mean()).cpu().item())
+            max_grads.append((lr * p.grad.abs().max()).cpu().item())
+            min_grads.append((lr * p.grad.abs().min()).cpu().item())
 
     ax.bar(3*np.arange(len(max_grads)), max_grads, lw=2, color="r")
     ax.bar(3*np.arange(len(max_grads)), ave_grads, lw=2, color="m")
