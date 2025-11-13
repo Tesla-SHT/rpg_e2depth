@@ -1,5 +1,5 @@
 {
-    "name": "e2depth_evggs_si_grad_loss",
+    "name": "e2depth_evggs-debug-smooth-v2",
     "cuda": true,
     "gpu": 0,
     "save_dir": "saved/",
@@ -37,7 +37,7 @@
         "epochs": 100,
         "sequence_length": 10,
         "save_dir": "saved/",
-        "save_freq": 5,
+        "save_freq": 2,
         "verbosity": 2,
         "monitor": "val_loss",
         "monitor_mode": "min",
@@ -46,7 +46,9 @@
         "still_previews": true,
         "grid_loss": true
     },
-
+    "smooth_loss": {
+        "weight": 1.0
+    },
     "optimizer_type": "Adam",
     "optimizer": {
         "lr": 0.0001,
@@ -63,7 +65,7 @@
     "data_loader": {
         "train": {
             "type": "SequenceSynchronizedFramesEventsDataset",
-            "base_folder": "/run/user/1001/gvfs/sftp:host=login.cvgl.lab,port=22332/datasets/feed_forward_event/Tartanair_tmp/indoor",
+            "base_folder": "/run/determined/workdir/data/feed_forward_event/Tartanair_tmp/indoor",
             "event_folder": "events",
             "depth_folder": "depth",
             "frame_folder": "rgb",
@@ -71,15 +73,15 @@
             "proba_pause_when_running": 0.0,
             "proba_pause_when_paused": 0.0,
             "step_size": 5,
-            "clip_distance": 100.0,
+            "clip_distance": 65535.0,
             "scale_factor": 1.0,
             "inverse": false,
-            "start_idx": 1
+            "start_idx": 2
 
         },
         "validation": {
             "type": "SequenceSynchronizedFramesEventsDataset",
-            "base_folder": "/run/user/1001/gvfs/sftp:host=login.cvgl.lab,port=22332/datasets/feed_forward_event/Tartanair_tmp/indoor",
+            "base_folder": "/run/determined/workdir/data/feed_forward_event/Tartanair_tmp/indoor",
             "event_folder": "events",
             "depth_folder": "depth",
             "frame_folder": "rgb",
@@ -90,7 +92,7 @@
             "clip_distance": 100.0,
             "scale_factor": 1.0,
             "inverse": false,
-            "start_idx": 1
+            "start_idx": 2
         },
         "batch_size": 4,
         "shuffle": true,

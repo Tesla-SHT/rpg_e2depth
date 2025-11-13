@@ -21,7 +21,7 @@ def FLAGS():
     parser.add_argument("--crop_ymax", default=260, type=int)
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--idx", type=int, default=-1)
-    parser.add_argument("--start_idx", type=int, default=-1)
+    parser.add_argument("--start_idx", type=int, default=1)
     parser.add_argument("--prediction_offset", type=int, default=0)
     parser.add_argument("--target_offset", type=int, default=0)
     parser.add_argument("--clip_distance", type=float, default=80.0)

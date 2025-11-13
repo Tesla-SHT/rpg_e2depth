@@ -12,3 +12,7 @@ imageio
 matplotlib
 pandas
 pillow
+
+scikit-learn
+kornia
+scikit-image

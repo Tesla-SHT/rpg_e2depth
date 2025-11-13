@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO, format='')
 
 
 def concatenate_evggs_scenes(base_folder, scenes, sequence_length, transform=None,
-                              clip_distance=100.0, normalize=True, scale_factor=1.0, 
+                              clip_distance=65535.0, normalize=True, scale_factor=1.0, 
                               inverse=False, step_size=1):
     """
     Create an instance of ConcatDataset by aggregating all EvGGS scenes
@@ -121,7 +121,16 @@ def main(config, resume, initial_checkpoint=None):
         shuffle=config['data_loader']['shuffle'], 
         **kwargs
     )
-
+    print("\n=== Checking first batch ===")
+    for batch in data_loader:
+        print(f"Batch length: {len(batch)}")  # 应该是 sequence_length
+        print(f"First item keys: {batch[0].keys()}")
+        print(f"Events shape: {batch[0]['events'].shape}")
+        print(f"Frame shape: {batch[0]['frame'].shape}")
+        print(f"Events min/max: {batch[0]['events'].min():.4f}/{batch[0]['events'].max():.4f}")
+        print(f"Frame min/max: {batch[0]['frame'].min():.4f}/{batch[0]['frame'].max():.4f}")
+        break
+    print("=========================\n")
     valid_data_loader = DataLoader(
         validation_dataset, 
         batch_size=config['data_loader']['batch_size'],

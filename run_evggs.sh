@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # 配置参数
-MODEL_PATH="pretrained/E2DEPTH_si_grad_loss_mixed.pth.tar"
-DATA_ROOT="/run/user/1001/gvfs/sftp:host=login.cvgl.lab,port=22332/datasets/feed_forward_event/Tartanair_tmp/indoor"
-OUTPUT_FOLDER="./output"
+MODEL_PATH="saved/e2depth_evggs-debug-smooth/checkpoint-epoch016-loss-0.0505.pth.tar"
+DATA_ROOT="/run/determined/workdir/data/feed_forward_event/Tartanair_tmp/indoor"
+OUTPUT_FOLDER="./output/fintuned-epoch016"
 START_IDX=1
 STOP_IDX=100
 

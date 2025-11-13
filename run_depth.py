@@ -29,7 +29,7 @@ if __name__ == "__main__":
                         help='Type of dataset: voxelgrid or evggs')
     parser.add_argument('--scene_name', default=None, type=str,
                         help='Scene name for EvGGS dataset')
-    parser.add_argument('--start_idx', default=0, type=int,
+    parser.add_argument('--start_idx', default=1, type=int,
                         help='Start frame index for EvGGS dataset')
     parser.add_argument('--stop_idx', default=None, type=int,
                         help='Stop frame index for EvGGS dataset')

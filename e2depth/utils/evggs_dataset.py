@@ -44,7 +44,7 @@ class EvGGSDataset(Dataset):
                  load_mask=False,
                  use_voxel=True,
                  verbose=False,
-                 clip_distance = 100.0):
+                 clip_distance = 65535.0):
         """
         Args:
             base_folder: EvGGS数据集的根目录
@@ -125,15 +125,23 @@ class EvGGSDataset(Dataset):
         
         actual_idx = self.start_idx + idx
         frame_name = f'frame{actual_idx:06d}'
-        
+        #assert actual_idx <=0, "Index out of range"
+        #print("acutal idx", actual_idx)
+        #print("fdslkfjskljflksjf")
         data = {
             'frame_idx': actual_idx
         }
-        
+        #self.use_voxel = False
         # 加载事件数据
         if self.use_voxel:
             # 加载voxel数据从.npz文件
+            # print("idx", idx)
+            # print("start idx", self.start_idx)
+            # print("actual idx", actual_idx)
+            # print("frame_name", frame_name)
             npz_path = join(self.images_folder, f'{frame_name}.npz')
+            if actual_idx <=0:
+                raise IndexError(f"Index out of range: {actual_idx}")
             if not os.path.exists(npz_path):
                 raise FileNotFoundError(f"Voxel file not found: {npz_path}")
             
@@ -177,7 +185,7 @@ class EvGGSDataset(Dataset):
                 
         else:
             # 加载事件帧PNG图像
-            png_path = join(self.images_folder, f'{frame_name}.png')
+            png_path = join(self.images_folder, f'{frame_name}.jpg')
             if not os.path.exists(png_path):
                 raise FileNotFoundError(f"Event frame not found: {png_path}")
             
@@ -192,7 +200,7 @@ class EvGGSDataset(Dataset):
                 # 如果是灰度图，添加channel维度
                 event_frame = event_frame[np.newaxis, :, :]
             
-            events = torch.from_numpy(event_frame).float() / 255.0
+            events = torch.from_numpy(event_frame).float()
         
         data['events'] = events
         
@@ -204,15 +212,16 @@ class EvGGSDataset(Dataset):
                 depth_img = Image.open(depth_path)
                 depth = np.array(depth_img).astype(np.float32)
                 
+                #print("depth range", depth.min(), depth.max())
                 # 归一化处理（参考原版）
                 depth = np.clip(depth, 0.0, self.clip_distance)
                 max_val = np.amax(depth[~np.isnan(depth)])
                 if max_val > 0:
                     depth = depth / max_val
                 
-                # 转为 log depth
-                depth = 1.0 + np.log(depth + 1e-6) / 3.70378
-                depth = depth.clip(0, 1.0)
+                # # 转为 log depth
+                # depth = 1.0 + np.log(depth + 1e-6) / 3.70378
+                # depth = depth.clip(0, 1.0)
                 
                 # 确保是 [1, H, W] 格式
                 if len(depth.shape) == 2:  # [H, W]
@@ -319,9 +328,9 @@ class EvGGSSequenceDataset(Dataset):
     """
     
     def __init__(self, base_folder, scene_name, sequence_length=5,
-                 transform=None, clip_distance=100.0, normalize=True,
+                 transform=None, clip_distance=65535.0, normalize=True,
                  scale_factor=1.0, inverse=False, step_size=1,
-                 use_voxel=True, start_idx=0, stop_idx=None):
+                 use_voxel=True, start_idx=1, stop_idx=None):
         
         self.L = sequence_length
         self.transform = transform
@@ -367,7 +376,7 @@ class EvGGSSequenceDataset(Dataset):
         
         sequence = []
         
-        for k in range(1, self.L):
+        for k in range(0, self.L):
             j = i * self.step_size + k
             item = self.dataset.__getitem__(j, seed)
             #print("item keys:", item.keys())
@@ -379,12 +388,13 @@ class EvGGSSequenceDataset(Dataset):
             else:
                 # 如果没有depth，创建一个零张量
                 depth = torch.zeros(1, item['events'].shape[1], item['events'].shape[2])
-            
+
             # 创建 flow: [2, H, W]
             flow = torch.zeros(2, depth.shape[1], depth.shape[2], dtype=torch.float32)
             transformed_item = {
                 'events': item['events'],
-                'frame': item['depth'],  # 用 depth 作为 frame
+                'frame': depth,  # 用 depth 作为 frame
+                'flow': flow
             }
             
             # 如果有其他需要的数据也可以保留
