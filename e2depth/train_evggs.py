@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO, format='')
 
 def concatenate_evggs_scenes(base_folder, scenes, sequence_length, transform=None,
                               clip_distance=65535.0, normalize=True, scale_factor=1.0, 
-                              inverse=False, step_size=1):
+                              inverse=False, step_size=1, start_idx=1, stop_idx = 200):
     """
     Create an instance of ConcatDataset by aggregating all EvGGS scenes
     """
@@ -41,7 +41,9 @@ def concatenate_evggs_scenes(base_folder, scenes, sequence_length, transform=Non
                 scale_factor=scale_factor,
                 inverse=inverse,
                 step_size=step_size,
-                use_voxel=True
+                use_voxel=True,
+                start_idx=start_idx,
+                stop_idx = stop_idx
             )
             train_datasets.append(dataset)
             print(f'  Loaded {len(dataset)} sequences from {scene_name}')
@@ -95,7 +97,9 @@ def main(config, resume, initial_checkpoint=None):
         normalize=normalize,
         scale_factor=scale_factor,
         inverse=inverse,
-        step_size=step_size
+        step_size=step_size,
+        start_idx = config['data_loader']['train'].get('start_idx', 1),
+        stop_idx = config['data_loader']['train'].get('stop_idx', 200)
     )
 
     # Create validation dataset
@@ -108,7 +112,9 @@ def main(config, resume, initial_checkpoint=None):
         normalize=normalize,
         scale_factor=scale_factor,
         inverse=inverse,
-        step_size=step_size
+        step_size=step_size,
+        start_idx = config['data_loader']['validation'].get('start_idx', 1),
+        stop_idx = config['data_loader']['validation'].get('stop_idx', 200)
     )
 
     # Set up data loaders

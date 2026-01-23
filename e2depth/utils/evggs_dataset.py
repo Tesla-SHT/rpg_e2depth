@@ -378,6 +378,8 @@ class EvGGSSequenceDataset(Dataset):
         
         for k in range(0, self.L):
             j = i * self.step_size + k
+            if j >= len(self.dataset):
+                break
             item = self.dataset.__getitem__(j, seed)
             #print("item keys:", item.keys())
             # 确保 depth 有正确的维度 [1, H, W]

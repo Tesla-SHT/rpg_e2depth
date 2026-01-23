@@ -86,7 +86,7 @@ class EvGGSDataset(Dataset):
         # 设置索引范围
         self.start_idx = start_idx
         if stop_idx is None:
-            self.stop_idx = len(event_files) + start_idx
+            self.stop_idx = len(event_files)
         else:
             self.stop_idx = stop_idx
         
@@ -282,7 +282,7 @@ class EvGGSSequenceDataset(Dataset):
     def __init__(self, base_folder, scene_name, sequence_length=5,
                  transform=None, clip_distance=100.0, normalize=True,
                  scale_factor=1.0, inverse=False, step_size=1,
-                 use_voxel=True, start_idx=1, stop_idx=None,
+                 use_voxel=True, start_idx=1, stop_idx=200,
                  proba_pause_when_running=0.0, proba_pause_when_paused=0.0):
         
         assert(sequence_length > 0)

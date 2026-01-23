@@ -1,5 +1,5 @@
 {
-    "name": "e2depth_evggs-debug-smooth-v2",
+    "name": "e2depth_MVSEC",
     "cuda": true,
     "gpu": 0,
     "save_dir": "saved/",
@@ -65,7 +65,7 @@
     "data_loader": {
         "train": {
             "type": "SequenceSynchronizedFramesEventsDataset",
-            "base_folder": "/run/determined/workdir/data/feed_forward_event/Tartanair_tmp/indoor",
+            "base_folder": "/run/determined/workdir/data/feed_forward_event/MVSEC_all",
             "event_folder": "events",
             "depth_folder": "depth",
             "frame_folder": "rgb",
@@ -76,12 +76,13 @@
             "clip_distance": 65535.0,
             "scale_factor": 1.0,
             "inverse": false,
-            "start_idx": 2
+            "start_idx": 150,
+            "stop_idx": 800
 
         },
         "validation": {
             "type": "SequenceSynchronizedFramesEventsDataset",
-            "base_folder": "/run/determined/workdir/data/feed_forward_event/Tartanair_tmp/indoor",
+            "base_folder": "/run/determined/workdir/data/feed_forward_event/MVSEC_all",
             "event_folder": "events",
             "depth_folder": "depth",
             "frame_folder": "rgb",
@@ -92,7 +93,7 @@
             "clip_distance": 100.0,
             "scale_factor": 1.0,
             "inverse": false,
-            "start_idx": 2
+            "start_idx": 150
         },
         "batch_size": 4,
         "shuffle": true,

@@ -1,11 +1,13 @@
 #!/bin/bash
 
 # 配置参数
-MODEL_PATH="saved/e2depth_evggs-debug-smooth/checkpoint-epoch016-loss-0.0505.pth.tar"
-DATA_ROOT="/run/determined/workdir/data/feed_forward_event/Tartanair_tmp/indoor"
-OUTPUT_FOLDER="./output/fintuned-epoch016-eval"
-START_IDX=1
-STOP_IDX=100
+MODEL_PATH="pretrained/E2DEPTH_si_grad_loss_mixed.pth.tar"
+DATA_ROOT="/run/user/1000/gvfs/sftp:host=login.cvgl.lab,port=22332/datasets/feed_forward_event/MVSEC_all"
+OUTPUT_FOLDER="./output/MVSEC_150_350"
+# DATA_ROOT="/run/determined/workdir/data/feed_forward_event/Tartanair_tmp/indoor"
+# OUTPUT_FOLDER="./output/TartanAir_fintuned-082_scaledepth"
+START_IDX=150
+STOP_IDX=350
 
 # 评估相关参数
 EVAL_CLIP_DISTANCE=80.0
@@ -137,8 +139,8 @@ echo "" | tee -a "$SUMMARY_FILE"
 echo "Results saved to: $OUTPUT_FOLDER" | tee -a "$SUMMARY_FILE"
 echo "Summary file: $SUMMARY_FILE" | tee -a "$SUMMARY_FILE"
 echo "Each scene has:" | tee -a "$SUMMARY_FILE"
-echo "  - predictions/: predicted depth maps (.npy)" | tee -a "$SUMMARY_FILE"
-echo "  - ground_truth/: ground truth depth maps (.npy)" | tee -a "$SUMMARY_FILE"
+# echo "  - predictions/: predicted depth maps (.npy)" | tee -a "$SUMMARY_FILE"
+# echo "  - ground_truth/: ground truth depth maps (.npy)" | tee -a "$SUMMARY_FILE"
 if [[ $SAVE_PNG_FLAGS == *"save_pred_png"* ]]; then
     echo "  - pred_png/: predicted depth visualizations (.png)" | tee -a "$SUMMARY_FILE"
 fi
