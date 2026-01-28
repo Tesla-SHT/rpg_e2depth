@@ -90,7 +90,11 @@ def run_evaluation(model_path, data_root, output_folder, scene_name,
         
         output = result.stdout + result.stderr
         success = result.returncode == 0
-        
+                # 写日志到每个场景目录，方便排查
+        scene_out_dir = Path(output_folder) / scene_name
+        scene_out_dir.mkdir(parents=True, exist_ok=True)
+        (scene_out_dir / "batch_run.log").write_text(output, errors="ignore")
+
         return success, output
     
     except subprocess.TimeoutExpired:
@@ -128,6 +132,8 @@ def main():
                         help='Skip confirmation prompt')
     parser.add_argument('--use_mask', action='store_true',
                         help='Use valid depth mask during evaluation')
+    parser.add_argument('--skip_indoor', action='store_true',
+                        help='Skip scenes with "indoor" in their name')
     args = parser.parse_args()
     
     # 查找所有场景
@@ -174,6 +180,11 @@ def main():
     
     # 遍历所有场景
     for i, scene in enumerate(scenes, 1):
+        #if folder contains"indoor" skip it by arg --skip_indoor
+        if "indoor" in scene.lower() and args.skip_indoor:
+            print(f"\n=== Skipping indoor scene: {scene} ===")
+            success_count += 1
+            continue
         #如果已经产生了，那么就跳过这个场景
         if (output_folder / scene).exists():
             print(f"\n=== Skipping already processed scene: {scene} ===")
@@ -291,7 +302,7 @@ if __name__ == '__main__':
 
 python run_depth_evggs_batch.py -c "pretrained/E2DEPTH_si_grad_loss_mixed.pth.tar" -i "/run/determined/workdir/data/feed_forward_event/replica_event_frame_processed_check/" -o "./output/Ev3D" --save_pred_png --save_gt_png
 
-python run_depth_evggs_batch.py -c "pretrained/E2DEPTH_si_grad_loss_mixed.pth.tar" -i "/run/determined/workdir/data/feed_forward_event/MVSEC_all" -o "./output/MVSEC" --save_pred_png --save_gt_png --start_idx 150 --stop_idx 250
+python run_depth_evggs_batch.py -c "pretrained/E2DEPTH_si_grad_loss_mixed.pth.tar" -i "/run/determined/workdir/data/feed_forward_event/MVSEC_all" -o "./output/MVSEC_outdoor_1000" --save_pred_png --save_gt_png --start_idx 150 --stop_idx 1050 --skip_indoor
 
 python run_depth_evggs_batch.py -c "saved/e2depth_evggs-debug-smooth-v2/checkpoint-epoch082-loss-0.0412.pth.tar" -i "/run/determined/workdir/data/feed_forward_event/Tartanair_tmp/indoor" -o "./output/Tartanair_new" --save_pred_png --save_gt_png
 '''

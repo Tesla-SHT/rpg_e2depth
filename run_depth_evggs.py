@@ -130,6 +130,7 @@ def compute_metrics(gt, pred, eps=1e-6):
         "delta1.25": float(delta1_25),
         "delta1.25^2": float(delta1_25_2),
         "delta1.25^3": float(delta1_25_3),
+        "delta1.03": float(np.mean(ratio <= 1.03)),
         "n": int(np.sum(mask))
     }
 
